@@ -21,6 +21,7 @@
   },
   "name": "autostart-lister",
   "bin": {
-    "autostart-list": "dist/cli.js"
+    "autostart-list": "dist/cli.js",
+    "autostart-web": "dist/server.js"
   }
 }
