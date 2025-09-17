@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自動起動アプリ管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .status-loaded { @apply bg-green-100 text-green-800; }
+        .status-not_loaded { @apply bg-red-100 text-red-800; }
+        .status-unknown { @apply bg-gray-100 text-gray-800; }
+        .source-loginitem { @apply bg-blue-100 text-blue-800; }
+        .source-launchagent { @apply bg-purple-100 text-purple-800; }
+        .source-launchdaemon { @apply bg-orange-100 text-orange-800; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- ヘッダー -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">🚀 自動起動アプリ管理</h1>
+            <p class="text-gray-600">macOSの自動起動設定されているアプリケーションを一覧表示します</p>
+        </div>
+
+        <!-- コントロールパネル -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div class="flex flex-wrap gap-4 items-center">
+                <button id="refreshBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors">
+                    🔄 更新
+                </button>
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" id="statusCheck" class="rounded">
+                    <span>ステータス解決（PID取得）</span>
+                </label>
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" id="autoRefresh" class="rounded">
+                    <span>自動更新（30秒間隔）</span>
+                </label>
+                <div id="lastUpdate" class="text-sm text-gray-500 ml-auto"></div>
+            </div>
+        </div>
+
+        <!-- 統計情報 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow-sm p-4">
+                <div class="text-2xl font-bold text-blue-600" id="totalCount">-</div>
+                <div class="text-sm text-gray-600">総数</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-4">
+                <div class="text-2xl font-bold text-green-600" id="loadedCount">-</div>
+                <div class="text-sm text-gray-600">実行中</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-4">
+                <div class="text-2xl font-bold text-red-600" id="notLoadedCount">-</div>
+                <div class="text-sm text-gray-600">停止中</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-4">
+                <div class="text-2xl font-bold text-gray-600" id="unknownCount">-</div>
+                <div class="text-sm text-gray-600">不明</div>
+            </div>
+        </div>
+
+        <!-- データテーブル -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">種別</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">名前/ラベル</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">パス/プログラム</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">自動起動</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ステータス</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PID</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTable" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                                データを読み込み中...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval = null;
+
+        async function fetchData() {
+            const withStatus = document.getElementById('statusCheck').checked;
+            try {
+                const response = await fetch(`/api/autostart?status=${withStatus}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderTable(result.data);
+                    updateStats(result.data);
+                    document.getElementById('lastUpdate').textContent = 
+                        `最終更新: ${new Date(result.timestamp).toLocaleString('ja-JP')}`;
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Data fetch error:', error);
+                document.getElementById('dataTable').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-red-500">
+                            エラー: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('dataTable');
+            if (data.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                            データがありません
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = data.map(item => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium source-${item.source}">
+                            ${getSourceLabel(item.source)}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-900">
+                        ${item.label || item.name || '-'}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title="${item.program || item.path || '-'}">
+                        ${item.program || item.path || '-'}
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        ${item.runAtLoad === true ? '✅' : item.runAtLoad === false ? '❌' : '-'}
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium status-${item.status || 'unknown'}">
+                            ${getStatusLabel(item.status)}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-900">
+                        ${item.pid || '-'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateStats(data) {
+            const total = data.length;
+            const loaded = data.filter(item => item.status === 'loaded').length;
+            const notLoaded = data.filter(item => item.status === 'not_loaded').length;
+            const unknown = data.filter(item => item.status === 'unknown').length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('loadedCount').textContent = loaded;
+            document.getElementById('notLoadedCount').textContent = notLoaded;
+            document.getElementById('unknownCount').textContent = unknown;
+        }
+
+        function getSourceLabel(source) {
+            switch (source) {
+                case 'loginitem': return 'ログイン項目';
+                case 'launchagent': return 'LaunchAgent';
+                case 'launchdaemon': return 'LaunchDaemon';
+                default: return source || '-';
+            }
+        }
+
+        function getStatusLabel(status) {
+            switch (status) {
+                case 'loaded': return '実行中';
+                case 'not_loaded': return '停止中';
+                case 'unknown': return '不明';
+                default: return status || '不明';
+            }
+        }
+
+        // イベントリスナー
+        document.getElementById('refreshBtn').addEventListener('click', fetchData);
+
+        document.getElementById('autoRefresh').addEventListener('change', function() {
+            if (this.checked) {
+                autoRefreshInterval = setInterval(fetchData, 30000);
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        });
+
+        // 初期データ読み込み
+        fetchData();
+    </script>
+</body>
+</html>
