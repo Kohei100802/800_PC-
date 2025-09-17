@@ -15,7 +15,9 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/cli.js",
-    "dev": "tsc -w"
+    "dev": "tsc -w",
+    "web": "node dist/server.js",
+    "dev-web": "tsc && node dist/server.js"
   },
   "name": "autostart-lister",
   "bin": {
