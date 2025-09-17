@@ -33,6 +33,10 @@
                     <span>ステータス解決（PID取得）</span>
                 </label>
                 <label class="flex items-center gap-2">
+                    <input type="checkbox" id="mineOnly" class="rounded">
+                    <span>自作のみ</span>
+                </label>
+                <label class="flex items-center gap-2">
                     <input type="checkbox" id="autoRefresh" class="rounded">
                     <span>自動更新（30秒間隔）</span>
                 </label>
@@ -91,8 +95,9 @@
 
         async function fetchData() {
             const withStatus = document.getElementById('statusCheck').checked;
+            const mineOnly = document.getElementById('mineOnly').checked;
             try {
-                const response = await fetch(`/api/autostart?status=${withStatus}`);
+                const response = await fetch(`/api/autostart?status=${withStatus}&mine=${mineOnly}`);
                 const result = await response.json();
                 
                 if (result.success) {
