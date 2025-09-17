@@ -6,6 +6,8 @@ import { scanLoginItems } from "./features/scanLoginItems";
 import { scanLaunchAgentsAndDaemons } from "./features/scanLaunchPlists";
 import { aggregateResults } from "./features/aggregate";
 import { resolveLaunchStatus } from "./features/resolveStatus";
+import { loadMineConfig } from "./shared/config";
+import { filterMine } from "./features/filterMine";
 
 const app = express();
 const PORT = 1000;
@@ -18,6 +20,7 @@ app.use(express.static(path.join(__dirname, "../public")));
 app.get("/api/autostart", async (req, res) => {
 	try {
 		const withStatus = req.query.status === "true";
+		const mineOnly = req.query.mine === "true";
 		
 		const login = await scanLoginItems();
 		const launch = await scanLaunchAgentsAndDaemons();
@@ -25,6 +28,10 @@ app.get("/api/autostart", async (req, res) => {
 		
 		if (withStatus) {
 			list = await resolveLaunchStatus(list);
+		}
+		if (mineOnly) {
+			const cfg = await loadMineConfig();
+			list = filterMine(list, cfg);
 		}
 		
 		res.json({
