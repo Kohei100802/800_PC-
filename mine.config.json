@@ -1,0 +1,19 @@
+{
+	"labelPrefixes": [
+		"com.kohei.",
+		"com.daruma.",
+		"com.birthbuddy.",
+		"com.PM2",
+		"com.daruma.ai-talkshow",
+		"com.daruma.planner"
+	],
+	"pathPrefixes": [
+		"/Users/kohei/ローカルフォルダ",
+		"/Users/kohei/ローカルフォルダ/800_PC自動起動確認",
+		"/Applications/AltTab.app",
+		"/Library/Application Support/Logitech.localized/",
+		"/usr/local/bin/pm2"
+	]
+}
+
+
