@@ -1,0 +1,20 @@
+{
+  "devDependencies": {
+    "@types/node": "^24.5.1",
+    "@types/plist": "^3.0.5",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "bplist-parser": "^0.3.2",
+    "plist": "^3.1.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "dev": "tsc -w"
+  },
+  "name": "autostart-lister",
+  "bin": {
+    "autostart-list": "dist/cli.js"
+  }
+}
